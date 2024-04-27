@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-16"?>
+<RibbonTypes xmlns="http://schemas.microsoft.com/2006/11/ribbon">
+  <Ribbon.Tabs>
+    <Tab Cmd="MyTab" Sequence="50" Id="MyTab.Tab">
+      <Scaling Id="MyTab.Scaling" />
+      <Tab.Groups>
+        <Group Cmd="MyGroup" Sequence="10" Id="MyGroup.Group">
+          <Controls Id="MyGroup.Controls">
+            <FlyoutAnchor Id="MyFlyoutAnchor" Alt="My Flyout" Image16by16="/_imgs/ribbon/FlyoutAnchor_16.png" Image32by32="/_imgs/ribbon/FlyoutAnchor_32.png" Sequence="10">
+              <Menu Id="MyFlyout">
+                <MenuSection Id="MyMenuSection" Sequence="10">
+                  <DynamicMenu Id="MyDynamicMenu" />
+                </MenuSection>
+              </Menu>
+            </FlyoutAnchor>
+          </Controls>
+        </Group>
+      </Tab.Groups>
+    </Tab>
+  </Ribbon.Tabs>
+  <RibbonTemplates Id="Mscrm.Templates">
+    <RibbonTemplate Id="MyTemplate">
+      <Ribbon.Id>
+        <CommandValue Id="MyCommand" />
+      </Ribbon.Id>
+    </RibbonTemplate>
+  </RibbonTemplates>
+  <CommandDefinitions>
+    <CommandDefinition Id="MyCommand">
+      <EnableRules>
+        <EnableRule Id="Mscrm.Enabled" />
+      </EnableRules>
+      <DisplayRules>
+        <DisplayRule Id="Mscrm.CanRead" />
+      </DisplayRules>
+      <Actions>
+        <QueryCommand Id="MyQueryCommand" ReturnType="MenuItem" />
+      </Actions>
+    </CommandDefinition>
+  </CommandDefinitions>
+  <QueryCommandDefinitions>
+    <QueryCommandDefinition Id="MyQueryCommand">
+      <QueryCommandType>PopulateQueryCommand</QueryCommandType>
+      <QueryCommandProperties>
+        <QueryCommandProperty Name="MenuItemType" Value="Url" />
+      </QueryCommandProperties>
+      <QueryCommandJavaScriptFunction>populateFlyout</QueryCommandJavaScriptFunction>
+    </QueryCommandDefinition>
+  </QueryCommandDefinitions>
+</RibbonTypes>
+
+<script type="text/javascript">
+  async function populateFlyout(context) {
+    let dashboardLinks = await GetEnvironmentVariableValue("dashboardlinks");
+    if (!dashboardLinks) return;
+
+    let links = dashboardLinks.split("|");
+    let menuItems = [];
+    for (let i = 0; i < links.length; i++) {
+      let link = links[i];
+      let parts = link.split("^");
+      if (parts.length < 2) continue;
+
+      menuItems.push({
+        Id: parts[0],
+        Label: parts[0],
+        Url: parts[1],
+        Image16by16: "/_imgs/ribbon/Menu_16.png",
+        Image32by32: "/_imgs/ribbon/Menu_32.png"
+      });
+    }
+    context.getQueryCommand().setQueryResult(menuItems);
+  }
+
+  async function GetEnvironmentVariableValue(name) {
+    let results = await Xrm.WebApi.retrieveMultipleRecords("environmentvariabledefinition", `?$filter=schemaname eq '${name}'&$select=environmentvariabledefinitionid&$expand=environmentvariabledefinition_environmentvariablevalue($select=value)`);
+
+    if (!results || !results.entities || results.entities.length < 1) return null;
+    let variable = results.entities[0];
+    if (!variable.environmentvariabledefinition_environmentvariablevalue || variable.environmentvariabledefinition_environmentvariablevalue.length < 1) return null;
+
+    return variable.environmentvariabledefinition_environmentvariablevalue[0].value;
+  }
+</script>
